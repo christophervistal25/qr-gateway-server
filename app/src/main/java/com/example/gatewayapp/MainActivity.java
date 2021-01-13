@@ -2,158 +2,117 @@ package com.example.gatewayapp;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.recyclerview.widget.DividerItemDecoration;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
-import android.app.PendingIntent;
+import android.app.AlertDialog;
 import android.content.Intent;
-import android.content.pm.PackageManager;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
-import android.telephony.SmsManager;
-import android.telephony.SmsMessage;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
-import android.widget.ImageButton;
 import android.widget.Toast;
 
-import java.text.DateFormat;
-import java.util.Date;
+import com.example.gatewayapp.Adapters.SendStatusAdapter;
+import com.example.gatewayapp.Database.DB;
+import com.example.gatewayapp.Database.Models.SendStatus;
 
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
-import retrofit2.Retrofit;
+import java.util.List;
 
-public class MainActivity extends AppCompatActivity {
-    private static final String TAG = MainActivity.class.getSimpleName();
+public class MainActivity extends AppCompatActivity implements SendStatusAdapter.ItemClickListener {
     private static final int MY_PERMISSIONS_REQUEST_SEND_SMS = 1;
+    SendStatusAdapter adapter;
 
-    /**
-     * Creates the activity, sets the view, and checks for SMS permission.
-     *
-     * @param savedInstanceState Instance state
-     */
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState)
+    {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        // Check to see if SMS is enabled.
-        checkForSmsPermission();
+        this.permissionForAccessingSMS();
+        //insertFakeData();
+        initRecyclerView();
+        Button btnFailedMessage = findViewById(R.id.btnFailedMessages);
+        Button btnResendAll = findViewById(R.id.btnReSendAll);
+
+        List<SendStatus> noOfFailedMessages = DB.getInstance(this).sendStatusDao().getFailedMessages();
+
+        btnFailedMessage.setText(String.format("FAILED MESSAGES > %d", noOfFailedMessages.size()));
+
+
+        btnResendAll.setOnClickListener(v -> {
+            Toast.makeText(this, "Make a API Request", Toast.LENGTH_SHORT).show();
+        });
+
+
     }
 
-    /**
-     * Checks whether the app has SMS permission.
-     */
-    private void checkForSmsPermission() {
-        if (ActivityCompat.checkSelfPermission(this,
-                Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
-            Log.d(TAG, getString(R.string.permission_not_granted));
-            // Permission not yet granted. Use requestPermissions().
-            // MY_PERMISSIONS_REQUEST_SEND_SMS is an
-            // app-defined int constant. The callback method gets the
-            // result of the request.
-            ActivityCompat.requestPermissions(this,
-                    new String[]{Manifest.permission.SEND_SMS},
-                    MY_PERMISSIONS_REQUEST_SEND_SMS);
-        } else {
-            // Permission already granted. Enable the SMS button.
-            enableSmsButton();
+    private void insertFakeData() {
+        for(int i = 0; i<20; i++) {
+            SendStatus sendStatus = new SendStatus();
+            sendStatus.setData_message("Sample " + i);
+            sendStatus.setStatus("Failed");
+            DB.getInstance(getApplicationContext()).sendStatusDao().create(sendStatus);
         }
     }
 
-    /**
-     * Processes permission request codes.
-     *
-     * @param requestCode  The request code passed in requestPermissions()
-     * @param permissions  The requested permissions. Never null.
-     * @param grantResults The grant results for the corresponding permissions
-     *                     which is either PERMISSION_GRANTED or PERMISSION_DENIED. Never null.
-     */
-    @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           String permissions[], int[] grantResults) {
-        // For the requestCode, check if permission was granted or not.
-        switch (requestCode) {
-            case MY_PERMISSIONS_REQUEST_SEND_SMS: {
-                if (permissions[0].equalsIgnoreCase(Manifest.permission.SEND_SMS)
-                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    // Permission was granted. Enable sms button.
-                    enableSmsButton();
-                } else {
-                    // Permission denied.
-                    Log.d(TAG, getString(R.string.failure_permission));
-                    Toast.makeText(this, getString(R.string.failure_permission),
-                            Toast.LENGTH_LONG).show();
-                    // Disable the sms button.
-                    disableSmsButton();
-                }
-            }
-        }
+    private void initRecyclerView() {
+        List<SendStatus> personLogList = DB.getInstance(this).sendStatusDao().getAll();
+
+        RecyclerView recyclerView = findViewById(R.id.send_list_status);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        adapter = new SendStatusAdapter(this, personLogList);
+        adapter.setClickListener(this);
+        DividerItemDecoration itemDecoration = new DividerItemDecoration(recyclerView.getContext(), DividerItemDecoration.VERTICAL);
+        GradientDrawable drawable = new GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP, new int[]{0xfff7f7f7, 0xfff7f7f7});
+        drawable.setSize(1,2);
+        itemDecoration.setDrawable(drawable);
+        recyclerView.addItemDecoration(itemDecoration);
+        recyclerView.setAdapter(adapter);
     }
 
-    /**
-     * Defines a string (destinationAddress) for the phone number
-     * and gets the input text for the SMS message.
-     * Uses SmsManager.sendTextMessage to send the message.
-     * Before sending, checks to see if permission is granted.
-     *
-     * @param view View (message_icon) that was clicked.
-     */
-    public void smsSendMessage(View view) {
-        EditText editText = (EditText) findViewById(R.id.editText_main);
-        // Set the destination phone number to the string in editText.
-        String destinationAddress = editText.getText().toString();
-        // Find the sms_message view.
-        EditText smsEditText = (EditText) findViewById(R.id.sms_message);
-        // Get the text of the sms message.
-        String smsMessage = smsEditText.getText().toString();
-        // Set the service center address if needed, otherwise null.
-        String scAddress = null;
-        // Set pending intents to broadcast
-        // when message sent and when delivered, or set to null.
-        PendingIntent sentIntent = null, deliveryIntent = null;
-        // Check for permission first.
-        checkForSmsPermission();
-        // Use SmsManager.
-        SmsManager smsManager = SmsManager.getDefault();
-        smsManager.sendTextMessage(destinationAddress, scAddress, smsMessage,
-                sentIntent, deliveryIntent);
-    }
-
-    /**
-     * Makes the sms button (message icon) invisible so that it can't be used,
-     * and makes the Retry button visible.
-     */
-    private void disableSmsButton() {
-        Toast.makeText(this, R.string.sms_disabled, Toast.LENGTH_LONG).show();
-        ImageButton smsButton = (ImageButton) findViewById(R.id.message_icon);
-        smsButton.setVisibility(View.INVISIBLE);
-        Button retryButton = (Button) findViewById(R.id.button_retry);
-        retryButton.setVisibility(View.VISIBLE);
-    }
-
-    /**
-     * Makes the sms button (message icon) visible so that it can be used.
-     */
-    private void enableSmsButton() {
-        ImageButton smsButton = (ImageButton) findViewById(R.id.message_icon);
-        smsButton.setVisibility(View.VISIBLE);
-    }
-
-    /**
-     * Sends an intent to start the activity.
-     *
-     * @param view  View (Retry button) that was clicked.
-     */
-    public void retryApp(View view) {
-        Intent intent = getPackageManager().getLaunchIntentForPackage(getPackageName());
-        startActivity(intent);
-    }
-
-    public void sendToApi()
+    private void permissionForAccessingSMS()
     {
+        ActivityCompat.requestPermissions(this, new String[] { Manifest.permission.SEND_SMS }, MY_PERMISSIONS_REQUEST_SEND_SMS);
+    }
+
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults)
+    {
+        // If the permission deny display the dialog again.
+        if(!String.valueOf(grantResults[0]).equals("0")) {
+            ActivityCompat.requestPermissions(this, new String[] { Manifest.permission.SEND_SMS }, MY_PERMISSIONS_REQUEST_SEND_SMS);
+        }
 
     }
 
+
+    @Override
+    public void onItemClick(View view, int position) {
+        // Record with failed status
+        if(!adapter.getItem(position).getStatus().equals("Send")) {
+            SendStatus record = adapter.getItem(position);
+            AlertDialog.Builder confirmationDialog = new AlertDialog.Builder(MainActivity.this);
+            confirmationDialog.setTitle("Re-send data");
+            confirmationDialog.setMessage(String.format("Do you want to re-send this record with ID : %s and status : %s", record.getId(), record.getStatus()));
+            confirmationDialog.setCancelable(true);
+
+            confirmationDialog.setPositiveButton(
+                    "Re-send ",
+                    (dialog, id) -> Toast.makeText(this, "Re-send this data.", Toast.LENGTH_SHORT).show());
+
+            confirmationDialog.setNegativeButton(
+                    "No",
+                    (dialog, id) -> {
+                        dialog.cancel();
+                    });
+
+            AlertDialog resendDialog = confirmationDialog.create();
+            resendDialog.show();
+        }
+    }
 }

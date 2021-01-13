@@ -13,7 +13,7 @@ import android.widget.Toast;
 import com.example.gatewayapp.MainActivity;
 
 public class SMSReceiver extends BroadcastReceiver  {
-    private static final String TAG = "GATE_WAY_RECEIVER";
+    private static final String TAG = "GATEWAY_APP";
     public static final String pdu_type = "pdus";
 
     /**
@@ -52,8 +52,14 @@ public class SMSReceiver extends BroadcastReceiver  {
                 // Log and display the SMS message.
                 Log.d(TAG, "onReceive: " + strMessage);
                 Toast.makeText(context, strMessage, Toast.LENGTH_LONG).show();
+//                sendToAPI();
             }
         }
     }
+
+//    private void sendToAPI()
+//    {
+//
+//    }
 
 }
