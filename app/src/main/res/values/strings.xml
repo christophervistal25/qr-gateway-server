@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">GatewayApp</string>
+    <string name="base_url">http://192.168.254.100:8000/api/</string>
+    <string name="permission_not_granted">Error!</string>
+    <string name="failure_permission">Failure Permission</string>
+    <string name="sms_disabled">SMS Disabled</string>
+
+</resources>
