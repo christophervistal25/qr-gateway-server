@@ -14,7 +14,7 @@
         >
 
         <TextView
-            android:text="Welcome to Server"
+            android:text="Welcome to ATP"
             android:fontFamily="@font/product_sans"
             android:textSize="25sp"
             android:layout_width="match_parent"

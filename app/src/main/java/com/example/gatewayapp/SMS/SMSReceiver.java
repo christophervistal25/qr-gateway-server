@@ -10,11 +10,39 @@ import android.telephony.SmsMessage;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.example.gatewayapp.Callbacks.ReceiverCallback;
+import com.example.gatewayapp.Database.DB;
+import com.example.gatewayapp.Database.Models.SendStatus;
+import com.example.gatewayapp.Helpers.ASCIIToChar;
+import com.example.gatewayapp.ISendData;
 import com.example.gatewayapp.MainActivity;
+import com.example.gatewayapp.RetrofitService;
+import com.example.gatewayapp.SendDataRequest;
+import com.example.gatewayapp.SendDataResponse;
+
+import java.util.List;
+import java.util.concurrent.BlockingDeque;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
 
 public class SMSReceiver extends BroadcastReceiver  {
     private static final String TAG = "GATEWAY_APP";
     public static final String pdu_type = "pdus";
+
+    private final int USER_ID_INDEX = 0;
+    private final int LOCATION_INDEX = 1;
+    private final int TEMPERATURE_INDEX = 2;
+    private final int TIME_INDEX = 3;
+
+
+
+
+
+
+
 
     /**
      * Called when the BroadcastReceiver is receiving an Intent broadcast.
@@ -47,19 +75,54 @@ public class SMSReceiver extends BroadcastReceiver  {
                     msgs[i] = SmsMessage.createFromPdu((byte[]) pdus[i]);
                 }
                 // Build the message to show.
-                strMessage += "SMS from " + msgs[i].getOriginatingAddress();
-                strMessage += " :" + msgs[i].getMessageBody() + "\n";
+//                strMessage += "SMS from " + msgs[i].getOriginatingAddress();
+                strMessage = msgs[i].getMessageBody();
                 // Log and display the SMS message.
-                Log.d(TAG, "onReceive: " + strMessage);
-                Toast.makeText(context, strMessage, Toast.LENGTH_LONG).show();
-//                sendToAPI();
+//                Toast.makeText(context, strMessage, Toast.LENGTH_LONG).show();
+                Toast.makeText(context, "Processing message", Toast.LENGTH_SHORT).show();
+                sendToAPI(context, strMessage);
             }
         }
     }
 
-//    private void sendToAPI()
-//    {
-//
-//    }
+    private void sendToAPI(Context context, String message)
+    {
+        // Push to SendStatusList
+        Retrofit retrofit = RetrofitService.RetrofitInstance(context);
+        ISendData service = retrofit.create(ISendData.class);
+
+        List<String> information =  ASCIIToChar.convert(message);
+
+        SendDataRequest requestPerson = new SendDataRequest();
+        requestPerson.setUser_id(information.get(USER_ID_INDEX));
+        requestPerson.setLocation(information.get(LOCATION_INDEX));
+        requestPerson.setTemperature(information.get(TEMPERATURE_INDEX));
+        requestPerson.setTime(information.get(TIME_INDEX));
+
+        Call<SendDataResponse> responsePersonCall = service.sendPersonLog(requestPerson);
+        responsePersonCall.enqueue(new Callback<SendDataResponse>() {
+            @Override
+            public void onResponse(Call<SendDataResponse> call, Response<SendDataResponse> response) {
+                if (response.body().getCode().equals("200")) {
+                    SendStatus sendStatus = new SendStatus();
+                    sendStatus.setId(DB.getInstance(context).sendStatusDao().getLastId() + 1);
+                    sendStatus.setData_message(message);
+                    sendStatus.setStatus("Send");
+                    DB.getInstance(context).sendStatusDao().create(sendStatus);
+                    Toast.makeText(context, "Success!", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<SendDataResponse> call, Throwable t) {
+                SendStatus sendStatus = new SendStatus();
+                sendStatus.setId(DB.getInstance(context).sendStatusDao().getLastId() + 1);
+                sendStatus.setData_message(message);
+                sendStatus.setStatus("Failed");
+                DB.getInstance(context).sendStatusDao().create(sendStatus);
+                Toast.makeText(context, t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
 
 }

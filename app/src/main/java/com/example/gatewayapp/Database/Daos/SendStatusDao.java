@@ -20,4 +20,10 @@ public interface SendStatusDao {
 
     @Query("SELECT * FROM send_status WHERE status != 'Send'")
     List<SendStatus> getFailedMessages();
+
+    @Query("SELECT MAX(id) from send_status")
+    int getLastId();
+
+    @Query("UPDATE send_status SET status = 'Send' WHERE id = :id")
+    void update(int id);
 }

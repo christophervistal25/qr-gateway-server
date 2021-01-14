@@ -5,6 +5,6 @@ import retrofit2.http.Body;
 import retrofit2.http.POST;
 
 public interface ISendData {
-    @POST("person/scanned/sms")
+    @POST("/api/person/scanned")
     Call<SendDataResponse> sendPersonLog(@Body SendDataRequest user);
 }
