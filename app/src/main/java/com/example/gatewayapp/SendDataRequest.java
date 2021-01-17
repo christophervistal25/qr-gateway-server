@@ -13,6 +13,10 @@ public class SendDataRequest {
     private String temperature;
 
 
+    @SerializedName("checker_id")
+    @Expose
+    private String checker_id;
+
     @SerializedName("location")
     @Expose
     private String location;
@@ -20,6 +24,10 @@ public class SendDataRequest {
     @SerializedName("time")
     @Expose
     private String time;
+
+    public void setChecker_id(String checker_id) {
+        this.checker_id = checker_id;
+    }
 
     public void setUser_id(String user_id) {
         this.user_id = user_id;

@@ -4,6 +4,15 @@ public class PersonLog {
     public String person_id;
     public String location;
     public String body_temperature;
+    public String checker_id;
+
+    public String getChecker_id() {
+        return checker_id;
+    }
+
+    public void setChecker_id(String checker_id) {
+        this.checker_id = checker_id;
+    }
 
     public String getBody_temperature() {
         return body_temperature;

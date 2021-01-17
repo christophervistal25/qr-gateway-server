@@ -33,9 +33,10 @@ public class SMSReceiver extends BroadcastReceiver  {
     public static final String pdu_type = "pdus";
 
     private final int USER_ID_INDEX = 0;
-    private final int LOCATION_INDEX = 1;
-    private final int TEMPERATURE_INDEX = 2;
-    private final int TIME_INDEX = 3;
+    private final int CHECKER_ID_INDEX  = 1;
+    private final int LOCATION_INDEX = 2;
+    private final int TEMPERATURE_INDEX = 3;
+    private final int TIME_INDEX = 4;
 
 
 
@@ -95,6 +96,7 @@ public class SMSReceiver extends BroadcastReceiver  {
 
         SendDataRequest requestPerson = new SendDataRequest();
         requestPerson.setUser_id(information.get(USER_ID_INDEX));
+        requestPerson.setChecker_id(information.get(CHECKER_ID_INDEX));
         requestPerson.setLocation(information.get(LOCATION_INDEX));
         requestPerson.setTemperature(information.get(TEMPERATURE_INDEX));
         requestPerson.setTime(information.get(TIME_INDEX));
@@ -109,7 +111,7 @@ public class SMSReceiver extends BroadcastReceiver  {
                     sendStatus.setData_message(message);
                     sendStatus.setStatus("Send");
                     DB.getInstance(context).sendStatusDao().create(sendStatus);
-                    Toast.makeText(context, "Success!", Toast.LENGTH_SHORT).show();
+                    //Toast.makeText(context, "Success!", Toast.LENGTH_SHORT).show();
                 }
             }
 

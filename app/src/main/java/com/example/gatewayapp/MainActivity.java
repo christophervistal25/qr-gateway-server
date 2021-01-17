@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
 import android.app.AlertDialog;
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.drawable.ColorDrawable;
@@ -48,6 +49,7 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
      SendStatusAdapter adapter;
      List<SendStatus> sendStatusList;
      Button btnFailedMessage;
+     ProgressDialog progressdialog;
 
 
     @Override
@@ -69,16 +71,22 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
         List<PersonLog> personLogList = new ArrayList<>();
 
         btnResendAll.setOnClickListener(v -> {
+            progressdialog = new ProgressDialog(MainActivity.this);
+            progressdialog.setMessage("Processing please wait...");
+            progressdialog.setCancelable(false);
+            progressdialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+            progressdialog.show();
+
             List<SendStatus> failedMessages = DB.getInstance(getApplicationContext()).sendStatusDao().getFailedMessages();
             for(SendStatus record : failedMessages) {
                 List<String> information = ASCIIToChar.convert(record.getData_message());
-                Log.d("USER_", information.get(0) + " " + information.get(1) + " " + information.get(2) + " " + information.get(3));
 
                 PersonLog personLog = new PersonLog();
                 personLog.setPerson_id(information.get(0));
-                personLog.setLocation(information.get(1));
-                personLog.setBody_temperature(information.get(2));
-                personLog.setTime(information.get(3));
+                personLog.setChecker_id(information.get(1));
+                personLog.setLocation(information.get(2));
+                personLog.setBody_temperature(information.get(3));
+                personLog.setTime(information.get(4));
 
                 personLogList.add(personLog);
             }
@@ -101,12 +109,20 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
                         DB.getInstance(getApplicationContext()).sendStatusDao().update(record.getId());
                     }
                     initRecyclerView();
-                    Toast.makeText(MainActivity.this, response.body().getMessage(), Toast.LENGTH_SHORT).show();
+                    progressdialog.dismiss();
+                    AlertDialog.Builder confirmationDialog = new AlertDialog.Builder(MainActivity.this);
+                    confirmationDialog.setTitle("All Right!");
+                    confirmationDialog.setMessage("All data successfully send.");
+                    confirmationDialog.setCancelable(true);
+                    AlertDialog confirmationAlert = confirmationDialog.create();
+                    confirmationAlert.show();
+
                 }
 
                 @Override
                 public void onFailure(Call<ResponsePerson> call, Throwable t) {
-                    Toast.makeText(MainActivity.this, t.getMessage(), Toast.LENGTH_SHORT).show();
+                    progressdialog.dismiss();
+                    Toast.makeText(MainActivity.this, "Please contact the tech support something went wrong.", Toast.LENGTH_SHORT).show();
                 }
             });
 
