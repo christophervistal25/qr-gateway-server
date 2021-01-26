@@ -17,9 +17,15 @@ public class SendDataRequest {
     @Expose
     private String checker_id;
 
+
+
     @SerializedName("location")
     @Expose
     private String location;
+
+    @SerializedName("purpose")
+    @Expose
+    private String purpose;
 
     @SerializedName("time")
     @Expose
@@ -43,5 +49,9 @@ public class SendDataRequest {
 
     public void setTime(String time) {
         this.time = time;
+    }
+
+    public void setPurpose(String purpose) {
+        this.purpose = purpose;
     }
 }

@@ -86,7 +86,8 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
                 personLog.setChecker_id(information.get(1));
                 personLog.setLocation(information.get(2));
                 personLog.setBody_temperature(information.get(3));
-                personLog.setTime(information.get(4));
+                personLog.setPurpose(information.get(4));
+                personLog.setTime(information.get(5));
 
                 personLogList.add(personLog);
             }

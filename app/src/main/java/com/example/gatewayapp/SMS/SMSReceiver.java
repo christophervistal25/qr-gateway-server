@@ -36,7 +36,8 @@ public class SMSReceiver extends BroadcastReceiver  {
     private final int CHECKER_ID_INDEX  = 1;
     private final int LOCATION_INDEX = 2;
     private final int TEMPERATURE_INDEX = 3;
-    private final int TIME_INDEX = 4;
+    private final int PURPOSE_INDEX = 4;
+    private final int TIME_INDEX = 5;
 
 
 
@@ -99,6 +100,7 @@ public class SMSReceiver extends BroadcastReceiver  {
         requestPerson.setChecker_id(information.get(CHECKER_ID_INDEX));
         requestPerson.setLocation(information.get(LOCATION_INDEX));
         requestPerson.setTemperature(information.get(TEMPERATURE_INDEX));
+        requestPerson.setPurpose(information.get(PURPOSE_INDEX));
         requestPerson.setTime(information.get(TIME_INDEX));
 
         Call<SendDataResponse> responsePersonCall = service.sendPersonLog(requestPerson);

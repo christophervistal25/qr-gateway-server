@@ -4,6 +4,7 @@ public class PersonLog {
     public String person_id;
     public String location;
     public String body_temperature;
+    public String purpose;
     public String checker_id;
 
     public String getChecker_id() {
@@ -48,5 +49,13 @@ public class PersonLog {
 
     public void setTime(String time) {
         this.time = time;
+    }
+
+    public String getPurpose() {
+        return purpose;
+    }
+
+    public void setPurpose(String purpose) {
+        this.purpose = purpose;
     }
 }
