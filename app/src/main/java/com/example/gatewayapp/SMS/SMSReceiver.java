@@ -103,6 +103,8 @@ public class SMSReceiver extends BroadcastReceiver  {
         requestPerson.setPurpose(information.get(PURPOSE_INDEX));
         requestPerson.setTime(information.get(TIME_INDEX));
 
+
+
         Call<SendDataResponse> responsePersonCall = service.sendPersonLog(requestPerson);
         responsePersonCall.enqueue(new Callback<SendDataResponse>() {
             @Override

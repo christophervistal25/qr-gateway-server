@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import android.Manifest;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.drawable.ColorDrawable;
@@ -135,12 +136,10 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
 
 
 
-
-
     private void insertFakeData() {
         for(int i = 0; i<20; i++) {
             SendStatus sendStatus = new SendStatus();
-            sendStatus.setData_message("50:124:84:97:110:100:97:103:32:67:105:116:121:124:51:54:46:55:124:74:97:110:32:49:52:44:32:50:48:50:49:32:49:50:58:51:57:58:48:49:32:80:77:");
+            sendStatus.setData_message("49:124:49:124:84:97:110:100:97:103:124:51:54:46:53:124:86:124:50:54:45:48:49:45:50:48:50:49:32:50:50:45:53:56:45:49:54:");
             sendStatus.setStatus("Failed");
             DB.getInstance(getApplicationContext()).sendStatusDao().create(sendStatus);
         }
