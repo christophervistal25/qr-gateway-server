@@ -2,19 +2,23 @@ package com.example.gatewayapp;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
 import android.app.AlertDialog;
+import android.app.PendingIntent;
 import android.app.ProgressDialog;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.telephony.SmsManager;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -26,7 +30,13 @@ import com.example.gatewayapp.Database.DB;
 import com.example.gatewayapp.Database.Models.PersonLog;
 import com.example.gatewayapp.Database.Models.SendStatus;
 import com.example.gatewayapp.Helpers.ASCIIToChar;
+import com.example.gatewayapp.Helpers.PinGenerator;
+import com.example.gatewayapp.R;
+import com.example.gatewayapp.RequestBulkPerson;
+import com.example.gatewayapp.ResponsePerson;
+import com.example.gatewayapp.SMS.MessageListener;
 import com.example.gatewayapp.SMS.SMSReceiver;
+import com.example.gatewayapp.SendAll;
 import com.google.gson.Gson;
 
 import org.json.JSONObject;
@@ -37,12 +47,19 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
+import de.adorsys.android.smsparser.SmsConfig;
+import de.adorsys.android.smsparser.SmsReceiver;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 import retrofit2.Retrofit;
 
-public class MainActivity extends AppCompatActivity implements SendStatusAdapter.ItemClickListener {
+public class MainActivity extends AppCompatActivity implements SendStatusAdapter.ItemClickListener , MessageListener {
+
+
+
+    public static final String GATEWAY_NUMBER = "09431364951";
+
 
     private static final int MY_PERMISSIONS_REQUEST_SEND_SMS = 1;
     // 124 in character is "|"
@@ -59,6 +76,11 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         this.permissionForAccessingSMS();
+
+        SMSReceiver.bindListener(this);
+
+
+
 //        this.insertFakeData();
         initRecyclerView();
         btnFailedMessage = findViewById(R.id.btnFailedMessages);
@@ -128,11 +150,37 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
                 }
             });
 
-
-
         });
-
     }
+
+
+    @Override
+    public void messageReceived(String sender, String message) {
+        if(message.equals("88f9e51be6703354608f99efbcfedf20")) {
+            PendingIntent sentPI = PendingIntent.getBroadcast(this, 0, new Intent("SMS_SENT"), 0);
+            PendingIntent deliveredPI = PendingIntent.getBroadcast(this, 0, new Intent("SMS_DELIVERED"), 0);
+            SmsManager.getDefault().sendTextMessage(sender, null, "Your One-Time-Pin\n" + PinGenerator.generate(), sentPI, deliveredPI);
+        }
+    }
+
+
+
+    @Override
+    protected void onResume() {
+        SMSReceiver.bindListener(this);
+        List<SendStatus> noOfFailedMessages = DB.getInstance(this).sendStatusDao().getFailedMessages();
+
+        btnFailedMessage.setText(String.format("FAILED MESSAGES > %d", noOfFailedMessages.size()));
+        initRecyclerView();
+        super.onResume();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+    }
+
+
 
 
 
@@ -160,14 +208,6 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
     }
 
 
-    @Override
-    protected void onResume() {
-        List<SendStatus> noOfFailedMessages = DB.getInstance(this).sendStatusDao().getFailedMessages();
-
-        btnFailedMessage.setText(String.format("FAILED MESSAGES > %d", noOfFailedMessages.size()));
-        initRecyclerView();
-        super.onResume();
-    }
 
     private void permissionForAccessingSMS()
     {
