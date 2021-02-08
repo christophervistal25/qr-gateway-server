@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">ATP</string>
-    <string name="base_url">http://192.168.1.2:8000/</string>
+    <string name="base_url">http://192.168.1.7:8000/</string>
 <!--    <string name="base_url">http://qr-code.surigaodelsur.ph/</string>-->
     <string name="permission_not_granted">Error!</string>
     <string name="failure_permission">Failure Permission</string>

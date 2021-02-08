@@ -1,27 +1,21 @@
 package com.example.gatewayapp.SMS;
 
-import android.annotation.TargetApi;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
 import android.os.Bundle;
 import android.telephony.SmsMessage;
-import android.util.Log;
 import android.widget.Toast;
 
-import com.example.gatewayapp.Callbacks.ReceiverCallback;
 import com.example.gatewayapp.Database.DB;
 import com.example.gatewayapp.Database.Models.SendStatus;
 import com.example.gatewayapp.Helpers.ASCIIToChar;
-import com.example.gatewayapp.ISendData;
-import com.example.gatewayapp.MainActivity;
+import com.example.gatewayapp.Contracts.ISendData;
 import com.example.gatewayapp.RetrofitService;
-import com.example.gatewayapp.SendDataRequest;
-import com.example.gatewayapp.SendDataResponse;
+import com.example.gatewayapp.ContractModels.SendDataRequest;
+import com.example.gatewayapp.ContractModels.SendDataResponse;
 
 import java.util.List;
-import java.util.concurrent.BlockingDeque;
 
 import retrofit2.Call;
 import retrofit2.Callback;

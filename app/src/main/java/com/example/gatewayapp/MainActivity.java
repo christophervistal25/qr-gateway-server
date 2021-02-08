@@ -2,7 +2,6 @@ package com.example.gatewayapp;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
-import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -11,11 +10,7 @@ import android.Manifest;
 import android.app.AlertDialog;
 import android.app.PendingIntent;
 import android.app.ProgressDialog;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.telephony.SmsManager;
@@ -25,30 +20,23 @@ import android.widget.Button;
 import android.widget.Toast;
 
 import com.example.gatewayapp.Adapters.SendStatusAdapter;
-import com.example.gatewayapp.Callbacks.ReceiverCallback;
+import com.example.gatewayapp.ContractModels.PersonIDRequest;
+import com.example.gatewayapp.ContractModels.RequestBulkPerson;
+import com.example.gatewayapp.ContractModels.ResponsePerson;
+import com.example.gatewayapp.Contracts.IPersonID;
 import com.example.gatewayapp.Database.DB;
 import com.example.gatewayapp.Database.Models.PersonLog;
 import com.example.gatewayapp.Database.Models.SendStatus;
 import com.example.gatewayapp.Helpers.ASCIIToChar;
 import com.example.gatewayapp.Helpers.PinGenerator;
-import com.example.gatewayapp.R;
-import com.example.gatewayapp.RequestBulkPerson;
-import com.example.gatewayapp.ResponsePerson;
 import com.example.gatewayapp.SMS.MessageListener;
 import com.example.gatewayapp.SMS.SMSReceiver;
-import com.example.gatewayapp.SendAll;
+import com.example.gatewayapp.Contracts.ISendAll;
 import com.google.gson.Gson;
 
-import org.json.JSONObject;
-
-import java.text.DateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 
-import de.adorsys.android.smsparser.SmsConfig;
-import de.adorsys.android.smsparser.SmsReceiver;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -78,6 +66,27 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
         this.permissionForAccessingSMS();
 
         SMSReceiver.bindListener(this);
+
+        Retrofit retrofit2 = RetrofitService.RetrofitInstance(getApplicationContext());
+        IPersonID service2 = retrofit2.create(IPersonID.class);
+        PersonIDRequest personIDRequest = new PersonIDRequest();
+        personIDRequest.setBarangay("awasian");
+        Call<ResponsePerson> responsePersonCall2 = service2.generate(personIDRequest);
+
+        responsePersonCall2.enqueue(new Callback<ResponsePerson>() {
+            @Override
+            public void onResponse(Call<ResponsePerson> call, Response<ResponsePerson> response) {
+                if (response.isSuccessful() && response.body().getCode().equals("200")) {
+                    Toast.makeText(MainActivity.this, "Send SMS Here.", Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ResponsePerson> call, Throwable t) {
+
+            }
+        });
+
 
 
 
@@ -116,7 +125,7 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
             }
 
             Retrofit retrofit = RetrofitService.RetrofitInstance(getApplicationContext());
-            SendAll service = retrofit.create(SendAll.class);
+            ISendAll service = retrofit.create(ISendAll.class);
             String jsonPersonLogList = new Gson().toJson(personLogList);
 
             RequestBulkPerson requestBulkPerson = new RequestBulkPerson();
@@ -160,7 +169,7 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
             Toast.makeText(this, "New user register", Toast.LENGTH_SHORT).show();
             PendingIntent sentPI = PendingIntent.getBroadcast(this, 0, new Intent("SMS_SENT"), 0);
             PendingIntent deliveredPI = PendingIntent.getBroadcast(this, 0, new Intent("SMS_DELIVERED"), 0);
-            SmsManager.getDefault().sendTextMessage(sender, null, "-Your One-Time-Pin\n" + PinGenerator.generate() + "-", sentPI, deliveredPI);
+//            SmsManager.getDefault().sendTextMessage(sender, null, "-Your One-Time-Pin\n" + PinGenerator.generate() + "-", sentPI, deliveredPI);
         }
     }
 

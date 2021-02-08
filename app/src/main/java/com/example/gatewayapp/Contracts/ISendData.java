@@ -1,4 +1,7 @@
-package com.example.gatewayapp;
+package com.example.gatewayapp.Contracts;
+
+import com.example.gatewayapp.ContractModels.SendDataRequest;
+import com.example.gatewayapp.ContractModels.SendDataResponse;
 
 import retrofit2.Call;
 import retrofit2.http.Body;
