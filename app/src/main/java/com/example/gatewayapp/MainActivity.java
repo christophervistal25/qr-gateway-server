@@ -157,9 +157,10 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
     @Override
     public void messageReceived(String sender, String message) {
         if(message.equals("88f9e51be6703354608f99efbcfedf20")) {
+            Toast.makeText(this, "New user register", Toast.LENGTH_SHORT).show();
             PendingIntent sentPI = PendingIntent.getBroadcast(this, 0, new Intent("SMS_SENT"), 0);
             PendingIntent deliveredPI = PendingIntent.getBroadcast(this, 0, new Intent("SMS_DELIVERED"), 0);
-            SmsManager.getDefault().sendTextMessage(sender, null, "Your One-Time-Pin\n" + PinGenerator.generate(), sentPI, deliveredPI);
+            SmsManager.getDefault().sendTextMessage(sender, null, "-Your One-Time-Pin\n" + PinGenerator.generate() + "-", sentPI, deliveredPI);
         }
     }
 
