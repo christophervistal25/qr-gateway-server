@@ -21,6 +21,7 @@ import android.widget.Toast;
 
 import com.example.gatewayapp.Adapters.SendStatusAdapter;
 import com.example.gatewayapp.ContractModels.PersonIDRequest;
+import com.example.gatewayapp.ContractModels.PersonIDResponse;
 import com.example.gatewayapp.ContractModels.RequestBulkPerson;
 import com.example.gatewayapp.ContractModels.ResponsePerson;
 import com.example.gatewayapp.Contracts.IPersonID;
@@ -47,6 +48,8 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
 
 
     public static final String GATEWAY_NUMBER = "09431364951";
+    public static final String MESSAGE_SEPARATOR = "z";
+    public static final String REQUEST_CODE = "88f9e51be6703354608f99efbcfedf20";
 
 
     private static final int MY_PERMISSIONS_REQUEST_SEND_SMS = 1;
@@ -67,25 +70,6 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
 
         SMSReceiver.bindListener(this);
 
-        Retrofit retrofit2 = RetrofitService.RetrofitInstance(getApplicationContext());
-        IPersonID service2 = retrofit2.create(IPersonID.class);
-        PersonIDRequest personIDRequest = new PersonIDRequest();
-        personIDRequest.setBarangay("awasian");
-        Call<ResponsePerson> responsePersonCall2 = service2.generate(personIDRequest);
-
-        responsePersonCall2.enqueue(new Callback<ResponsePerson>() {
-            @Override
-            public void onResponse(Call<ResponsePerson> call, Response<ResponsePerson> response) {
-                if (response.isSuccessful() && response.body().getCode().equals("200")) {
-                    Toast.makeText(MainActivity.this, "Send SMS Here.", Toast.LENGTH_SHORT).show();
-                }
-            }
-
-            @Override
-            public void onFailure(Call<ResponsePerson> call, Throwable t) {
-
-            }
-        });
 
 
 
@@ -165,11 +149,32 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
 
     @Override
     public void messageReceived(String sender, String message) {
-        if(message.equals("88f9e51be6703354608f99efbcfedf20")) {
+        String[] split = message.split(MESSAGE_SEPARATOR);
+        if(split[0].equals(REQUEST_CODE)) {
             Toast.makeText(this, "New user register", Toast.LENGTH_SHORT).show();
             PendingIntent sentPI = PendingIntent.getBroadcast(this, 0, new Intent("SMS_SENT"), 0);
             PendingIntent deliveredPI = PendingIntent.getBroadcast(this, 0, new Intent("SMS_DELIVERED"), 0);
-//            SmsManager.getDefault().sendTextMessage(sender, null, "-Your One-Time-Pin\n" + PinGenerator.generate() + "-", sentPI, deliveredPI);
+
+            Retrofit retrofit2 = RetrofitService.RetrofitInstance(getApplicationContext());
+            IPersonID service2 = retrofit2.create(IPersonID.class);
+            PersonIDRequest personIDRequest = new PersonIDRequest();
+            personIDRequest.setBarangay(split[1]);
+            Call<PersonIDResponse> responseCall = service2.generate(personIDRequest);
+            responseCall.enqueue(new Callback<PersonIDResponse>() {
+                @Override
+                public void onResponse(Call<PersonIDResponse> call, Response<PersonIDResponse> response) {
+                    if (response.isSuccessful() && response.body().getCode().equals("200")) {
+                        SmsManager.getDefault().sendTextMessage(sender, null, "Your One-Time-Pin\n" + response.body().getPerson_id(), sentPI, deliveredPI);
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<PersonIDResponse> call, Throwable t) {
+                    Toast.makeText(MainActivity.this, t.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            });
+
+
         }
     }
 
