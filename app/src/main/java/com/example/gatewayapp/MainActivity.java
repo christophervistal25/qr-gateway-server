@@ -13,6 +13,7 @@ import android.app.ProgressDialog;
 import android.content.Intent;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.os.Handler;
 import android.telephony.SmsManager;
 import android.util.Log;
 import android.view.View;
@@ -20,11 +21,13 @@ import android.widget.Button;
 import android.widget.Toast;
 
 import com.example.gatewayapp.Adapters.SendStatusAdapter;
+import com.example.gatewayapp.ContractModels.NotifierResponse;
 import com.example.gatewayapp.ContractModels.PersonIDRequest;
 import com.example.gatewayapp.ContractModels.PersonIDResponse;
 import com.example.gatewayapp.ContractModels.RequestBulkPerson;
 import com.example.gatewayapp.ContractModels.ResponsePerson;
 import com.example.gatewayapp.Contracts.IPersonID;
+import com.example.gatewayapp.Contracts.Notification;
 import com.example.gatewayapp.Database.DB;
 import com.example.gatewayapp.Database.Models.PersonLog;
 import com.example.gatewayapp.Database.Models.SendStatus;
@@ -34,14 +37,24 @@ import com.example.gatewayapp.SMS.MessageListener;
 import com.example.gatewayapp.SMS.SMSReceiver;
 import com.example.gatewayapp.Contracts.ISendAll;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
+import io.reactivex.Observable;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
+import okhttp3.OkHttpClient;
+import okhttp3.ResponseBody;
+import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
 import retrofit2.Retrofit;
+import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
+import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MainActivity extends AppCompatActivity implements SendStatusAdapter.ItemClickListener , MessageListener {
 
@@ -60,6 +73,14 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
      Button btnFailedMessage;
      ProgressDialog progressdialog;
 
+    private Handler mWaitHandler = new Handler();
+    private final static int SEND_SMS_PERMISSION_REQ = 1;
+
+
+    Notification apiService;
+    Retrofit retrofit;
+    Disposable disposable;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState)
@@ -71,10 +92,37 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
         SMSReceiver.bindListener(this);
 
 
+        HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor();
+        interceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
+        OkHttpClient client = new OkHttpClient.Builder()
+                .addInterceptor(interceptor)
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .writeTimeout(30, TimeUnit.SECONDS)
+                .build();
+
+        Gson gson = new GsonBuilder()
+                .setLenient()
+                .create();
+
+
+        retrofit = new Retrofit.Builder()
+                .baseUrl(getString(R.string.base_url))
+                .client(client)
+                .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
+                .addConverterFactory(GsonConverterFactory.create(gson))
+                .build();
+
+        apiService = retrofit.create(Notification.class);
+
+
+        disposable = Observable.interval(5000, 5000,
+                TimeUnit.MILLISECONDS)
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(this::callMessageEndpoint, this::onError);
 
 
 
-//        this.insertFakeData();
         initRecyclerView();
         btnFailedMessage = findViewById(R.id.btnFailedMessages);
         Button btnResendAll = findViewById(R.id.btnReSendAll);
@@ -147,6 +195,39 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
     }
 
 
+    private void onError(Throwable throwable) {
+        Toast.makeText(this, "OnError in Observable Timer",
+                Toast.LENGTH_LONG).show();
+    }
+
+    private void callMessageEndpoint(Long aLong) {
+
+        Call<List<NotifierResponse>> observable = apiService.getNotify();
+        observable.enqueue(new Callback<List<NotifierResponse>>() {
+            @Override
+            public void onResponse(Call<List<NotifierResponse>> call, Response<List<NotifierResponse>> response) {
+                Toast.makeText(MainActivity.this, "Fetched data from API", Toast.LENGTH_SHORT).show();
+                for(NotifierResponse notifierResponse: response.body()) {
+                    PendingIntent sentPI = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent("SMS_SENT"), 0);
+                    PendingIntent deliveredPI = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent("SMS_DELIVERED"), 0);
+                    SmsManager.getDefault().sendTextMessage(notifierResponse.getPhoneNumber(), null, notifierResponse.getMessage(), sentPI, deliveredPI);
+                }
+
+            }
+
+            @Override
+            public void onFailure(Call<List<NotifierResponse>> call, Throwable t) {
+
+            }
+        });
+
+
+
+
+    }
+
+
+
     @Override
     public void messageReceived(String sender, String message) {
         String[] split = message.split(MESSAGE_SEPARATOR);
@@ -154,25 +235,25 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
             Toast.makeText(this, "New user register", Toast.LENGTH_SHORT).show();
             PendingIntent sentPI = PendingIntent.getBroadcast(this, 0, new Intent("SMS_SENT"), 0);
             PendingIntent deliveredPI = PendingIntent.getBroadcast(this, 0, new Intent("SMS_DELIVERED"), 0);
-
-            Retrofit retrofit2 = RetrofitService.RetrofitInstance(getApplicationContext());
-            IPersonID service2 = retrofit2.create(IPersonID.class);
-            PersonIDRequest personIDRequest = new PersonIDRequest();
-            personIDRequest.setBarangay(split[1]);
-            Call<PersonIDResponse> responseCall = service2.generate(personIDRequest);
-            responseCall.enqueue(new Callback<PersonIDResponse>() {
-                @Override
-                public void onResponse(Call<PersonIDResponse> call, Response<PersonIDResponse> response) {
-                    if (response.isSuccessful() && response.body().getCode().equals("200")) {
-                        SmsManager.getDefault().sendTextMessage(sender, null, "Your One-Time-Pin\n" + response.body().getPerson_id(), sentPI, deliveredPI);
-                    }
-                }
-
-                @Override
-                public void onFailure(Call<PersonIDResponse> call, Throwable t) {
-                    Toast.makeText(MainActivity.this, t.getMessage(), Toast.LENGTH_SHORT).show();
-                }
-            });
+            SmsManager.getDefault().sendTextMessage(sender, null, "Your One-Time-Pin " + PinGenerator.generate() + " please do not share this with anyone. ", sentPI, deliveredPI);
+//            Retrofit retrofit2 = RetrofitService.RetrofitInstance(getApplicationContext());
+//            IPersonID service2 = retrofit2.create(IPersonID.class);
+//            PersonIDRequest personIDRequest = new PersonIDRequest();
+//            personIDRequest.setBarangay(split[1]);
+//            Call<PersonIDResponse> responseCall = service2.generate(personIDRequest);
+//            responseCall.enqueue(new Callback<PersonIDResponse>() {
+//                @Override
+//                public void onResponse(Call<PersonIDResponse> call, Response<PersonIDResponse> response) {
+//                    if (response.isSuccessful()) {
+//                        SmsManager.getDefault().sendTextMessage(sender, null, "Your One-Time-Pin\n" + response.body().getPerson_id(), sentPI, deliveredPI);
+//                    }
+//                }
+//
+//                @Override
+//                public void onFailure(Call<PersonIDResponse> call, Throwable t) {
+//                    Toast.makeText(MainActivity.this, t.getMessage(), Toast.LENGTH_SHORT).show();
+//                }
+//            });
 
 
         }
