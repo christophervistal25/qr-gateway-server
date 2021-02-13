@@ -98,34 +98,34 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
         this.requestOTPAndPersonId();
 
 
-        HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor();
-        interceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
-        OkHttpClient client = new OkHttpClient.Builder()
-                .addInterceptor(interceptor)
-                .connectTimeout(30, TimeUnit.SECONDS)
-                .readTimeout(30, TimeUnit.SECONDS)
-                .writeTimeout(30, TimeUnit.SECONDS)
-                .build();
-
-        Gson gson = new GsonBuilder()
-                .setLenient()
-                .create();
-
-
-        retrofit = new Retrofit.Builder()
-                .baseUrl(getString(R.string.base_url))
-                .client(client)
-                .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
-                .addConverterFactory(GsonConverterFactory.create(gson))
-                .build();
-
-        apiService = retrofit.create(Notification.class);
+//        HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor();
+//        interceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
+//        OkHttpClient client = new OkHttpClient.Builder()
+//                .addInterceptor(interceptor)
+//                .connectTimeout(30, TimeUnit.SECONDS)
+//                .readTimeout(30, TimeUnit.SECONDS)
+//                .writeTimeout(30, TimeUnit.SECONDS)
+//                .build();
+//
+//        Gson gson = new GsonBuilder()
+//                .setLenient()
+//                .create();
 
 
-        disposable = Observable.interval(5000, 5000,
-                TimeUnit.MILLISECONDS)
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(this::callMessageEndpoint, this::onError);
+//        retrofit = new Retrofit.Builder()
+//                .baseUrl(getString(R.string.base_url))
+//                .client(client)
+//                .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
+//                .addConverterFactory(GsonConverterFactory.create(gson))
+//                .build();
+//
+//        apiService = retrofit.create(Notification.class);
+//
+//
+//        disposable = Observable.interval(5000, 5000,
+//                TimeUnit.MILLISECONDS)
+//                .observeOn(AndroidSchedulers.mainThread())
+//                .subscribe(this::callMessageEndpoint, this::onError);
 
 
 
@@ -214,11 +214,11 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
             @Override
             public void onResponse(Call<List<NotifierResponse>> call, Response<List<NotifierResponse>> response) {
 //                Toast.makeText(MainActivity.this, "Fetched data from API", Toast.LENGTH_SHORT).show();
-                for(NotifierResponse notifierResponse: response.body()) {
-                    PendingIntent sentPI = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent("SMS_SENT"), 0);
-                    PendingIntent deliveredPI = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent("SMS_DELIVERED"), 0);
-                    SmsManager.getDefault().sendTextMessage(notifierResponse.getPhoneNumber(), null, notifierResponse.getMessage(), sentPI, deliveredPI);
-                }
+//                for(NotifierResponse notifierResponse: response.body()) {
+//                    PendingIntent sentPI = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent("SMS_SENT"), 0);
+//                    PendingIntent deliveredPI = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent("SMS_DELIVERED"), 0);
+//                    SmsManager.getDefault().sendTextMessage(notifierResponse.getPhoneNumber(), null, notifierResponse.getMessage(), sentPI, deliveredPI);
+//                }
 
             }
 
@@ -236,6 +236,7 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
 
     public void requestOTPAndPersonId()
     {
+        Toast.makeText(this, "Processing.", Toast.LENGTH_SHORT).show();
         Retrofit retrofit2 = RetrofitService.RetrofitInstance(getApplicationContext());
         IPersonID service2 = retrofit2.create(IPersonID.class);
         PersonIDRequest personIDRequest = new PersonIDRequest();
@@ -252,13 +253,13 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
             public void onResponse(Call<PersonIDResponse> call, Response<PersonIDResponse> response) {
                 PersonIDResponse personIDResponse = response.body();
                 if(response.isSuccessful() && personIDResponse.getCode().equals("200")) {
-
+                    Toast.makeText(MainActivity.this, "Processing new user.", Toast.LENGTH_SHORT).show();
                     String[] personInformation = personIDResponse.getPerson_id().split("-");
                     String personID = personInformation[PERSON_ID];
                     PendingIntent sentPI = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent("SMS_SENT"), 0);
                     PendingIntent deliveredPI = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent("SMS_DELIVERED"), 0);
                     // Send sms with OTP CODE.
-                    SmsManager.getDefault().sendTextMessage("+639630711082", null, "Your One-Time-Pin\n" + PinGenerator.generate() + "\n#Ref Code : " + personID, sentPI, deliveredPI);
+                    SmsManager.getDefault().sendTextMessage("+639630711082", null, "Your One-Time-Pin\n" + PinGenerator.generate() + "\nNo" + personID, sentPI, deliveredPI);
                 }
             }
 
