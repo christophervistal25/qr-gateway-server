@@ -29,7 +29,6 @@
             android:text="RESEND ALL" />
 
 
-
         <Button
             android:id="@+id/btnFailedMessages"
             android:layout_width="match_parent"

@@ -1,5 +1,6 @@
 package com.example.gatewayapp;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.recyclerview.widget.DividerItemDecoration;
@@ -49,6 +50,9 @@ import io.reactivex.disposables.Disposable;
 import okhttp3.OkHttpClient;
 import okhttp3.ResponseBody;
 import okhttp3.logging.HttpLoggingInterceptor;
+import pub.devrel.easypermissions.AfterPermissionGranted;
+import pub.devrel.easypermissions.AppSettingsDialog;
+import pub.devrel.easypermissions.EasyPermissions;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
@@ -56,7 +60,7 @@ import retrofit2.Retrofit;
 import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
 import retrofit2.converter.gson.GsonConverterFactory;
 
-public class MainActivity extends AppCompatActivity implements SendStatusAdapter.ItemClickListener , MessageListener {
+public class MainActivity extends AppCompatActivity implements SendStatusAdapter.ItemClickListener , MessageListener , EasyPermissions.PermissionCallbacks  {
 
 
 
@@ -68,13 +72,12 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
     private static final int MY_PERMISSIONS_REQUEST_SEND_SMS = 1;
     // 124 in character is "|"
     private static final int DATA_SEPARATOR = 124;
+    private static final int PERSON_ID = 1;
      SendStatusAdapter adapter;
      List<SendStatus> sendStatusList;
      Button btnFailedMessage;
      ProgressDialog progressdialog;
 
-    private Handler mWaitHandler = new Handler();
-    private final static int SEND_SMS_PERMISSION_REQ = 1;
 
 
     Notification apiService;
@@ -87,9 +90,12 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
     {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        this.permissionForAccessingSMS();
 
         SMSReceiver.bindListener(this);
+
+        askForPermissions();
+
+        this.requestOTPAndPersonId();
 
 
         HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor();
@@ -135,61 +141,62 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
         List<PersonLog> personLogList = new ArrayList<>();
 
         btnResendAll.setOnClickListener(v -> {
-            progressdialog = new ProgressDialog(MainActivity.this);
-            progressdialog.setMessage("Processing please wait...");
-            progressdialog.setCancelable(false);
-            progressdialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-            progressdialog.show();
-
-            List<SendStatus> failedMessages = DB.getInstance(getApplicationContext()).sendStatusDao().getFailedMessages();
-            for(SendStatus record : failedMessages) {
-                List<String> information = ASCIIToChar.convert(record.getData_message());
-
-                PersonLog personLog = new PersonLog();
-                personLog.setPerson_id(information.get(0));
-                personLog.setChecker_id(information.get(1));
-                personLog.setLocation(information.get(2));
-                personLog.setBody_temperature(information.get(3));
-                personLog.setPurpose(information.get(4));
-                personLog.setTime(information.get(5));
-
-                personLogList.add(personLog);
-            }
-
-            Retrofit retrofit = RetrofitService.RetrofitInstance(getApplicationContext());
-            ISendAll service = retrofit.create(ISendAll.class);
-            String jsonPersonLogList = new Gson().toJson(personLogList);
-
-            RequestBulkPerson requestBulkPerson = new RequestBulkPerson();
-            requestBulkPerson.setData(jsonPersonLogList);
-
-            Log.d("USER_DATA_RESULT", jsonPersonLogList);
-
-            Call<ResponsePerson> responsePersonCall = service.bulkPersonLog(requestBulkPerson);
-            responsePersonCall.enqueue(new Callback<ResponsePerson>() {
-                @Override
-                public void onResponse(Call<ResponsePerson> call, Response<ResponsePerson> response) {
-                    //
-                    for(SendStatus record : failedMessages) {
-                        DB.getInstance(getApplicationContext()).sendStatusDao().update(record.getId());
-                    }
-                    initRecyclerView();
-                    progressdialog.dismiss();
-                    AlertDialog.Builder confirmationDialog = new AlertDialog.Builder(MainActivity.this);
-                    confirmationDialog.setTitle("All Right!");
-                    confirmationDialog.setMessage("All data successfully send.");
-                    confirmationDialog.setCancelable(true);
-                    AlertDialog confirmationAlert = confirmationDialog.create();
-                    confirmationAlert.show();
-
-                }
-
-                @Override
-                public void onFailure(Call<ResponsePerson> call, Throwable t) {
-                    progressdialog.dismiss();
-                    Toast.makeText(MainActivity.this, "Please contact the tech support something went wrong.", Toast.LENGTH_SHORT).show();
-                }
-            });
+            requestOTPAndPersonId();
+//            progressdialog = new ProgressDialog(MainActivity.this);
+//            progressdialog.setMessage("Processing please wait...");
+//            progressdialog.setCancelable(false);
+//            progressdialog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+//            progressdialog.show();
+//
+//            List<SendStatus> failedMessages = DB.getInstance(getApplicationContext()).sendStatusDao().getFailedMessages();
+//            for(SendStatus record : failedMessages) {
+//                List<String> information = ASCIIToChar.convert(record.getData_message());
+//
+//                PersonLog personLog = new PersonLog();
+//                personLog.setPerson_id(information.get(0));
+//                personLog.setChecker_id(information.get(1));
+//                personLog.setLocation(information.get(2));
+//                personLog.setBody_temperature(information.get(3));
+//                personLog.setPurpose(information.get(4));
+//                personLog.setTime(information.get(5));
+//
+//                personLogList.add(personLog);
+//            }
+//
+//            Retrofit retrofit = RetrofitService.RetrofitInstance(getApplicationContext());
+//            ISendAll service = retrofit.create(ISendAll.class);
+//            String jsonPersonLogList = new Gson().toJson(personLogList);
+//
+//            RequestBulkPerson requestBulkPerson = new RequestBulkPerson();
+//            requestBulkPerson.setData(jsonPersonLogList);
+//
+//            Log.d("USER_DATA_RESULT", jsonPersonLogList);
+//
+//            Call<ResponsePerson> responsePersonCall = service.bulkPersonLog(requestBulkPerson);
+//            responsePersonCall.enqueue(new Callback<ResponsePerson>() {
+//                @Override
+//                public void onResponse(Call<ResponsePerson> call, Response<ResponsePerson> response) {
+//                    //
+//                    for(SendStatus record : failedMessages) {
+//                        DB.getInstance(getApplicationContext()).sendStatusDao().update(record.getId());
+//                    }
+//                    initRecyclerView();
+//                    progressdialog.dismiss();
+//                    AlertDialog.Builder confirmationDialog = new AlertDialog.Builder(MainActivity.this);
+//                    confirmationDialog.setTitle("All Right!");
+//                    confirmationDialog.setMessage("All data successfully send.");
+//                    confirmationDialog.setCancelable(true);
+//                    AlertDialog confirmationAlert = confirmationDialog.create();
+//                    confirmationAlert.show();
+//
+//                }
+//
+//                @Override
+//                public void onFailure(Call<ResponsePerson> call, Throwable t) {
+//                    progressdialog.dismiss();
+//                    Toast.makeText(MainActivity.this, "Please contact the tech support something went wrong.", Toast.LENGTH_SHORT).show();
+//                }
+//            });
 
         });
     }
@@ -206,7 +213,7 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
         observable.enqueue(new Callback<List<NotifierResponse>>() {
             @Override
             public void onResponse(Call<List<NotifierResponse>> call, Response<List<NotifierResponse>> response) {
-                Toast.makeText(MainActivity.this, "Fetched data from API", Toast.LENGTH_SHORT).show();
+//                Toast.makeText(MainActivity.this, "Fetched data from API", Toast.LENGTH_SHORT).show();
                 for(NotifierResponse notifierResponse: response.body()) {
                     PendingIntent sentPI = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent("SMS_SENT"), 0);
                     PendingIntent deliveredPI = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent("SMS_DELIVERED"), 0);
@@ -227,15 +234,50 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
     }
 
 
+    public void requestOTPAndPersonId()
+    {
+        Retrofit retrofit2 = RetrofitService.RetrofitInstance(getApplicationContext());
+        IPersonID service2 = retrofit2.create(IPersonID.class);
+        PersonIDRequest personIDRequest = new PersonIDRequest();
+        personIDRequest.setBarangay("166819001");
+        personIDRequest.setFirstname("christopher");
+        personIDRequest.setMiddlename("platino");
+        personIDRequest.setLastname("vistal");
+        personIDRequest.setSuffix("");
+        personIDRequest.setDate_of_birth("2013-03-15");
+
+        Call<PersonIDResponse> responseCall = service2.generate(personIDRequest);
+        responseCall.enqueue(new Callback<PersonIDResponse>() {
+            @Override
+            public void onResponse(Call<PersonIDResponse> call, Response<PersonIDResponse> response) {
+                PersonIDResponse personIDResponse = response.body();
+                if(response.isSuccessful() && personIDResponse.getCode().equals("200")) {
+
+                    String[] personInformation = personIDResponse.getPerson_id().split("-");
+                    String personID = personInformation[PERSON_ID];
+                    PendingIntent sentPI = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent("SMS_SENT"), 0);
+                    PendingIntent deliveredPI = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent("SMS_DELIVERED"), 0);
+                    // Send sms with OTP CODE.
+                    SmsManager.getDefault().sendTextMessage("+639630711082", null, "Your One-Time-Pin\n" + PinGenerator.generate() + "\n#Ref Code : " + personID, sentPI, deliveredPI);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<PersonIDResponse> call, Throwable t) {
+                Toast.makeText(MainActivity.this, t.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
 
     @Override
     public void messageReceived(String sender, String message) {
         String[] split = message.split(MESSAGE_SEPARATOR);
         if(split[0].equals(REQUEST_CODE)) {
             Toast.makeText(this, "New user register", Toast.LENGTH_SHORT).show();
-            PendingIntent sentPI = PendingIntent.getBroadcast(this, 0, new Intent("SMS_SENT"), 0);
-            PendingIntent deliveredPI = PendingIntent.getBroadcast(this, 0, new Intent("SMS_DELIVERED"), 0);
-            SmsManager.getDefault().sendTextMessage(sender, null, "Your One-Time-Pin " + PinGenerator.generate() + " please do not share this with anyone. ", sentPI, deliveredPI);
+//            PendingIntent sentPI = PendingIntent.getBroadcast(this, 0, new Intent("SMS_SENT"), 0);
+//            PendingIntent deliveredPI = PendingIntent.getBroadcast(this, 0, new Intent("SMS_DELIVERED"), 0);
+//            SmsManager.getDefault().sendTextMessage(sender, null, "Your One-Time-Pin " + PinGenerator.generate() + " please do not share this with anyone. ", sentPI, deliveredPI);
 //            Retrofit retrofit2 = RetrofitService.RetrofitInstance(getApplicationContext());
 //            IPersonID service2 = retrofit2.create(IPersonID.class);
 //            PersonIDRequest personIDRequest = new PersonIDRequest();
@@ -280,15 +322,6 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
 
 
 
-    private void insertFakeData() {
-        for(int i = 0; i<20; i++) {
-            SendStatus sendStatus = new SendStatus();
-            sendStatus.setData_message("49:124:49:124:84:97:110:100:97:103:124:51:54:46:53:124:86:124:50:54:45:48:49:45:50:48:50:49:32:50:50:45:53:56:45:49:54:");
-            sendStatus.setStatus("Failed");
-            DB.getInstance(getApplicationContext()).sendStatusDao().create(sendStatus);
-        }
-    }
-
     private void initRecyclerView() {
         sendStatusList = DB.getInstance(this).sendStatusDao().getFailedMessages();
         RecyclerView recyclerView = findViewById(R.id.send_list_status);
@@ -305,21 +338,6 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
 
 
 
-    private void permissionForAccessingSMS()
-    {
-        ActivityCompat.requestPermissions(this, new String[] { Manifest.permission.SEND_SMS }, MY_PERMISSIONS_REQUEST_SEND_SMS);
-    }
-
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults)
-    {
-        // If the permission deny display the dialog again.
-        if(!String.valueOf(grantResults[0]).equals("0")) {
-            ActivityCompat.requestPermissions(this, new String[] { Manifest.permission.SEND_SMS }, MY_PERMISSIONS_REQUEST_SEND_SMS);
-        }
-
-    }
 
 
     @Override
@@ -347,6 +365,36 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
         }
     }
 
+
+    @AfterPermissionGranted(011)
+    private void askForPermissions() {
+        String[] perms = {Manifest.permission.INTERNET,  Manifest.permission.SEND_SMS, Manifest.permission.RECEIVE_SMS };
+        if (!EasyPermissions.hasPermissions(this, perms)) {
+            EasyPermissions.requestPermissions(this, "We need permissions", 123, perms);
+        }
+    }
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        EasyPermissions.onRequestPermissionsResult(requestCode, permissions, grantResults, this);
+    }
+    @Override
+    public void onPermissionsGranted(int requestCode, @NonNull List<String> perms) {
+    }
+    @Override
+    public void onPermissionsDenied(int requestCode, @NonNull List<String> perms) {
+        if (EasyPermissions.somePermissionPermanentlyDenied(this, perms)) {
+            new AppSettingsDialog.Builder(this).build().show();
+        } else {
+            askForPermissions();
+        }
+    }
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == AppSettingsDialog.DEFAULT_SETTINGS_REQ_CODE) {
+        }
+    }
 
 
 }
