@@ -1,4 +1,4 @@
-package com.example.gatewayapp;
+                                    package com.example.gatewayapp;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -26,7 +26,9 @@ import com.example.gatewayapp.ContractModels.NotifierResponse;
 import com.example.gatewayapp.ContractModels.PersonIDRequest;
 import com.example.gatewayapp.ContractModels.PersonIDResponse;
 import com.example.gatewayapp.ContractModels.RequestBulkPerson;
+import com.example.gatewayapp.ContractModels.RequestUpdateMessage;
 import com.example.gatewayapp.ContractModels.ResponsePerson;
+import com.example.gatewayapp.ContractModels.ResponseUpdateMessage;
 import com.example.gatewayapp.Contracts.IPersonID;
 import com.example.gatewayapp.Contracts.Notification;
 import com.example.gatewayapp.Database.DB;
@@ -39,6 +41,7 @@ import com.example.gatewayapp.SMS.SMSReceiver;
 import com.example.gatewayapp.Contracts.ISendAll;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.internal.reflect.ReflectionAccessor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -65,8 +68,7 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
 
 
     public static final String GATEWAY_NUMBER = "09431364951";
-    public static final String MESSAGE_SEPARATOR = "z";
-    public static final String REQUEST_CODE = "88f9e51be6703354608f99efbcfedf20";
+    public static final String REQUEST_CODE = "<#>";
 
 
     private static final int MY_PERMISSIONS_REQUEST_SEND_SMS = 1;
@@ -77,6 +79,17 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
      List<SendStatus> sendStatusList;
      Button btnFailedMessage;
      ProgressDialog progressdialog;
+
+     public final int BARANGAY_CODE_INDEX = 0;
+     public final int PERSON_INFO_INDEX = 1;
+
+     public final int FIRSTNAME = 0;
+     public final int MIDDLENAME = 1;
+     public final int LASTNAME = 2;
+     public final int SUFFIX = 3;
+     public final int DATE_OF_BIRTH = 4;
+
+
 
 
 
@@ -95,33 +108,33 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
 
         askForPermissions();
 
-        this.requestOTPAndPersonId();
+//        this.requestOTPAndPersonId();
 
 
-//        HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor();
-//        interceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
-//        OkHttpClient client = new OkHttpClient.Builder()
-//                .addInterceptor(interceptor)
-//                .connectTimeout(30, TimeUnit.SECONDS)
-//                .readTimeout(30, TimeUnit.SECONDS)
-//                .writeTimeout(30, TimeUnit.SECONDS)
-//                .build();
-//
-//        Gson gson = new GsonBuilder()
-//                .setLenient()
-//                .create();
+        HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor();
+        interceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
+        OkHttpClient client = new OkHttpClient.Builder()
+                .addInterceptor(interceptor)
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .writeTimeout(30, TimeUnit.SECONDS)
+                .build();
+
+        Gson gson = new GsonBuilder()
+                .setLenient()
+                .create();
 
 
-//        retrofit = new Retrofit.Builder()
-//                .baseUrl(getString(R.string.base_url))
-//                .client(client)
-//                .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
-//                .addConverterFactory(GsonConverterFactory.create(gson))
-//                .build();
-//
-//        apiService = retrofit.create(Notification.class);
-//
-//
+        retrofit = new Retrofit.Builder()
+                .baseUrl(getString(R.string.base_url))
+                .client(client)
+                .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
+                .addConverterFactory(GsonConverterFactory.create(gson))
+                .build();
+
+        apiService = retrofit.create(Notification.class);
+
+
 //        disposable = Observable.interval(5000, 5000,
 //                TimeUnit.MILLISECONDS)
 //                .observeOn(AndroidSchedulers.mainThread())
@@ -141,7 +154,7 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
         List<PersonLog> personLogList = new ArrayList<>();
 
         btnResendAll.setOnClickListener(v -> {
-            requestOTPAndPersonId();
+//            requestOTPAndPersonId();
 //            progressdialog = new ProgressDialog(MainActivity.this);
 //            progressdialog.setMessage("Processing please wait...");
 //            progressdialog.setCancelable(false);
@@ -209,16 +222,50 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
 
     private void callMessageEndpoint(Long aLong) {
 
+        StringBuilder messageIds = new StringBuilder();
+
         Call<List<NotifierResponse>> observable = apiService.getNotify();
         observable.enqueue(new Callback<List<NotifierResponse>>() {
             @Override
             public void onResponse(Call<List<NotifierResponse>> call, Response<List<NotifierResponse>> response) {
 //                Toast.makeText(MainActivity.this, "Fetched data from API", Toast.LENGTH_SHORT).show();
-//                for(NotifierResponse notifierResponse: response.body()) {
-//                    PendingIntent sentPI = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent("SMS_SENT"), 0);
-//                    PendingIntent deliveredPI = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent("SMS_DELIVERED"), 0);
-//                    SmsManager.getDefault().sendTextMessage(notifierResponse.getPhoneNumber(), null, notifierResponse.getMessage(), sentPI, deliveredPI);
-//                }
+                if(response.body().size() != 0) {
+                    for(NotifierResponse notifierResponse: response.body()) {
+                        PendingIntent sentPI = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent("SMS_SENT"), 0);
+                        PendingIntent deliveredPI = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent("SMS_DELIVERED"), 0);
+
+                        SmsManager sms = SmsManager.getDefault();
+                        ArrayList<String> parts = sms.divideMessage(notifierResponse.getMessage());
+                        sms.sendMultipartTextMessage(notifierResponse.getPhoneNumber(), null, parts, null, null);
+
+
+//                        SmsManager.getDefault().sendTextMessage(notifierResponse.getPhoneNumber(), null, notifierResponse.getMessage(), sentPI, deliveredPI);
+
+                        messageIds.append(notifierResponse.getId().toString()).append(",");
+                    }
+
+//                  Response back API sending id to update status.
+                    Retrofit retrofit2 = RetrofitService.RetrofitInstance(getApplicationContext());
+                    Notification serv = retrofit2.create(Notification.class);
+
+                    RequestUpdateMessage requestUpdateMessage = new RequestUpdateMessage();
+                    requestUpdateMessage.setMessage_id(messageIds.toString());
+
+                    Call<ResponseUpdateMessage> responseCall = serv.updateMessage(requestUpdateMessage);
+
+                    responseCall.enqueue(new Callback<ResponseUpdateMessage>() {
+                        @Override
+                        public void onResponse(Call<ResponseUpdateMessage> call, Response<ResponseUpdateMessage> response) {
+
+                        }
+
+                        @Override
+                        public void onFailure(Call<ResponseUpdateMessage> call, Throwable t) {
+
+                        }
+                    });
+
+                }
 
             }
 
@@ -234,61 +281,115 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
     }
 
 
-    public void requestOTPAndPersonId()
-    {
-        Toast.makeText(this, "Processing.", Toast.LENGTH_SHORT).show();
-        Retrofit retrofit2 = RetrofitService.RetrofitInstance(getApplicationContext());
-        IPersonID service2 = retrofit2.create(IPersonID.class);
-        PersonIDRequest personIDRequest = new PersonIDRequest();
-        personIDRequest.setBarangay("166819001");
-        personIDRequest.setFirstname("christopher");
-        personIDRequest.setMiddlename("platino");
-        personIDRequest.setLastname("vistal");
-        personIDRequest.setSuffix("");
-        personIDRequest.setDate_of_birth("2013-03-15");
-
-        Call<PersonIDResponse> responseCall = service2.generate(personIDRequest);
-        responseCall.enqueue(new Callback<PersonIDResponse>() {
-            @Override
-            public void onResponse(Call<PersonIDResponse> call, Response<PersonIDResponse> response) {
-                PersonIDResponse personIDResponse = response.body();
-                if(response.isSuccessful() && personIDResponse.getCode().equals("200")) {
-                    Toast.makeText(MainActivity.this, "Processing new user.", Toast.LENGTH_SHORT).show();
-                    String[] personInformation = personIDResponse.getPerson_id().split("-");
-                    String personID = personInformation[PERSON_ID];
-                    PendingIntent sentPI = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent("SMS_SENT"), 0);
-                    PendingIntent deliveredPI = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent("SMS_DELIVERED"), 0);
-                    // Send sms with OTP CODE.
-                    SmsManager.getDefault().sendTextMessage("+639630711082", null, "Your One-Time-Pin\n" + PinGenerator.generate() + "\nNo" + personID, sentPI, deliveredPI);
-                }
-            }
-
-            @Override
-            public void onFailure(Call<PersonIDResponse> call, Throwable t) {
-                Toast.makeText(MainActivity.this, t.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
+//    public void requestOTPAndPersonId()
+//    {
+//        Toast.makeText(this, "Processing.", Toast.LENGTH_SHORT).show();
+//        Retrofit retrofit2 = RetrofitService.RetrofitInstance(getApplicationContext());
+//        IPersonID service2 = retrofit2.create(IPersonID.class);
+//        PersonIDRequest personIDRequest = new PersonIDRequest();
+//        personIDRequest.setBarangay("166819001");
+//        personIDRequest.setFirstname("christopher");
+//        personIDRequest.setMiddlename("platino");
+//        personIDRequest.setLastname("vistal");
+//        personIDRequest.setSuffix("");
+//        personIDRequest.setDate_of_birth("2013-03-15");
+//
+//        Call<PersonIDResponse> responseCall = service2.generate(personIDRequest);
+//        responseCall.enqueue(new Callback<PersonIDResponse>() {
+//            @Override
+//            public void onResponse(Call<PersonIDResponse> call, Response<PersonIDResponse> response) {
+//                PersonIDResponse personIDResponse = response.body();
+//                if(response.isSuccessful() && personIDResponse.getCode().equals("200")) {
+//                    Toast.makeText(MainActivity.this, "Processing new user.", Toast.LENGTH_SHORT).show();
+//                    String[] personInformation = personIDResponse.getPerson_id().split("-");
+//                    String personID = personInformation[PERSON_ID];
+//                    PendingIntent sentPI = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent("SMS_SENT"), 0);
+//                    PendingIntent deliveredPI = PendingIntent.getBroadcast(getApplicationContext(), 0, new Intent("SMS_DELIVERED"), 0);
+//                    // Send sms with OTP CODE.
+//                    SmsManager.getDefault().sendTextMessage("+639630711082", null, "Your One-Time-Pin\n" + PinGenerator.generate() + "\nNo" + personID, sentPI, deliveredPI);
+//                }
+//            }
+//
+//            @Override
+//            public void onFailure(Call<PersonIDResponse> call, Throwable t) {
+//                Toast.makeText(MainActivity.this, t.getMessage(), Toast.LENGTH_SHORT).show();
+//            }
+//        });
+//    }
 
 
     @Override
     public void messageReceived(String sender, String message) {
-        String[] split = message.split(MESSAGE_SEPARATOR);
-        if(split[0].equals(REQUEST_CODE)) {
-            Toast.makeText(this, "New user register", Toast.LENGTH_SHORT).show();
+        if (message.contains("<#>")) {
+            String[] messageSplitted = message.split("Z");
+
+            String barangayCode = messageSplitted[BARANGAY_CODE_INDEX].replace("<#>", "");
+            String userInformation = messageSplitted[PERSON_INFO_INDEX];
+
+            List<String> decodedUserInformation = ASCIIToChar.convert(userInformation);
+
+            PendingIntent sentPI = PendingIntent.getBroadcast(this, 0, new Intent("SMS_SENT"), 0);
+            PendingIntent deliveredPI = PendingIntent.getBroadcast(this, 0, new Intent("SMS_DELIVERED"), 0);
+            Retrofit retrofit2 = RetrofitService.RetrofitInstance(getApplicationContext());
+            IPersonID service = retrofit2.create(IPersonID.class);
+
+            PersonIDRequest personIDRequest = new PersonIDRequest();
+            personIDRequest.setFirstname(decodedUserInformation.get(FIRSTNAME));
+            personIDRequest.setMiddlename(decodedUserInformation.get(MIDDLENAME));
+            personIDRequest.setLastname(decodedUserInformation.get(LASTNAME));
+            personIDRequest.setSuffix(decodedUserInformation.get(SUFFIX).equals("*")  ? "" : decodedUserInformation.get(SUFFIX));
+            personIDRequest.setDate_of_birth(decodedUserInformation.get(DATE_OF_BIRTH));
+            personIDRequest.setPhone_number(sender);
+            personIDRequest.setBarangay(barangayCode);
+
+
+            Call<PersonIDResponse> responseCall = service.generate(personIDRequest);
+            responseCall.enqueue(new Callback<PersonIDResponse>() {
+                @Override
+                public void onResponse(Call<PersonIDResponse> call, Response<PersonIDResponse> response) {
+
+                    if(response.body().getCode().equals("422")) {
+                        SmsManager.getDefault().sendTextMessage(sender, null, "Sorry! but the information you give already exists.", sentPI, deliveredPI);
+                    } else {
+                        SmsManager.getDefault().sendTextMessage(sender, null, "Your One-Time-Pin\n" + PinGenerator.generate() + "" +
+                                "\nNo" + response.body().getPerson_id(), sentPI, deliveredPI);
+                    }
+
+                }
+
+                @Override
+                public void onFailure(Call<PersonIDResponse> call, Throwable t) {
+                    Toast.makeText(MainActivity.this, t.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+            });
+
+        }
+//        if(split[0].equals(REQUEST_CODE)) {
+//
+//            Toast.makeText(this, "New user register", Toast.LENGTH_SHORT).show();
+//
 //            PendingIntent sentPI = PendingIntent.getBroadcast(this, 0, new Intent("SMS_SENT"), 0);
 //            PendingIntent deliveredPI = PendingIntent.getBroadcast(this, 0, new Intent("SMS_DELIVERED"), 0);
 //            SmsManager.getDefault().sendTextMessage(sender, null, "Your One-Time-Pin " + PinGenerator.generate() + " please do not share this with anyone. ", sentPI, deliveredPI);
 //            Retrofit retrofit2 = RetrofitService.RetrofitInstance(getApplicationContext());
-//            IPersonID service2 = retrofit2.create(IPersonID.class);
+//            IPersonID service = retrofit2.create(IPersonID.class);
+//
 //            PersonIDRequest personIDRequest = new PersonIDRequest();
 //            personIDRequest.setBarangay(split[1]);
-//            Call<PersonIDResponse> responseCall = service2.generate(personIDRequest);
+//            personIDRequest.setFirstname("christopher");
+//            personIDRequest.setMiddlename("platino");
+//            personIDRequest.setLastname("vistal");
+//            personIDRequest.setDate_of_birth("2013-03-15");
+//            personIDRequest.setSuffix("");
+//
+//            Call<PersonIDResponse> responseCall = service.generate(personIDRequest);
 //            responseCall.enqueue(new Callback<PersonIDResponse>() {
 //                @Override
 //                public void onResponse(Call<PersonIDResponse> call, Response<PersonIDResponse> response) {
+//                    Toast.makeText(MainActivity.this, response.body().getPerson_id(), Toast.LENGTH_SHORT).show();
 //                    if (response.isSuccessful()) {
-//                        SmsManager.getDefault().sendTextMessage(sender, null, "Your One-Time-Pin\n" + response.body().getPerson_id(), sentPI, deliveredPI);
+//                        SmsManager.getDefault().sendTextMessage(sender, null, "Your One-Time-Pin\n" + PinGenerator.generate() + "" +
+//                                "\nNo" + response.body().getPerson_id(), sentPI, deliveredPI);
 //                    }
 //                }
 //
@@ -297,9 +398,9 @@ public class MainActivity extends AppCompatActivity implements SendStatusAdapter
 //                    Toast.makeText(MainActivity.this, t.getMessage(), Toast.LENGTH_SHORT).show();
 //                }
 //            });
-
-
-        }
+//
+//
+//        }
     }
 
 

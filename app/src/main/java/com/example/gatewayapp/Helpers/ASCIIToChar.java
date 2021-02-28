@@ -30,7 +30,6 @@ public class ASCIIToChar {
                     decoded  += charString;
                 }
             }
-            // Sequence must be user_id , checker_id, location, temperature, purpose, time
             information.add(decoded);
         }
 

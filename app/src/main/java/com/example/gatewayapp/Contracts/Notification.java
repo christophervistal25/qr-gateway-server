@@ -1,17 +1,20 @@
 package com.example.gatewayapp.Contracts;
 
 import com.example.gatewayapp.ContractModels.NotifierResponse;
-import com.example.gatewayapp.ContractModels.SendDataRequest;
-import com.example.gatewayapp.ContractModels.SendDataResponse;
+import com.example.gatewayapp.ContractModels.RequestUpdateMessage;
+import com.example.gatewayapp.ContractModels.ResponseUpdateMessage;
 
 import java.util.List;
 
-import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.http.Body;
 import retrofit2.http.GET;
+import retrofit2.http.POST;
 
 public interface Notification {
-    @GET("/test/notify")
+    @GET("/api/notify/people")
     Call<List<NotifierResponse>> getNotify();
+
+    @POST("/api/sms/message/done")
+    Call<ResponseUpdateMessage> updateMessage(@Body RequestUpdateMessage requestUpdateMessage);
 }
